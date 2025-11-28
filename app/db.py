@@ -9,6 +9,21 @@ def _default_sqlite_url() -> str:
     return f"sqlite:///{os.path.join(base_dir, 'data.db')}"
 
 
+def _normalize_sqlite_url(database_url: str) -> str:
+    if not database_url.startswith("sqlite"):
+        return database_url
+    if database_url == "sqlite:///:memory:":
+        return database_url
+
+    db_path = database_url.replace("sqlite:///", "", 1).split("?", 1)[0]
+    if db_path.startswith("/"):
+        return database_url
+
+    base_dir = "/tmp" if os.getenv("VERCEL") else os.getcwd()
+    abs_path = os.path.join(base_dir, db_path)
+    return f"sqlite:///{abs_path}"
+
+
 def _ensure_sqlite_dir(database_url: str) -> None:
     if not database_url.startswith("sqlite"):
         return
@@ -22,6 +37,7 @@ def _ensure_sqlite_dir(database_url: str) -> None:
 
 
 DATABASE_URL = os.getenv("DATABASE_URL") or _default_sqlite_url()
+DATABASE_URL = _normalize_sqlite_url(DATABASE_URL)
 
 _ensure_sqlite_dir(DATABASE_URL)
 
