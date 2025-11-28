@@ -1,31 +1,50 @@
-[![Deploy with Vercel](https://vercel.com/button)](https://vercel.com/new/clone?repository-url=https%3A%2F%2Fgithub.com%2Fvercel%2Fvercel%2Ftree%2Fmain%2Fexamples%2Fflask&demo-title=Flask%20API&demo-description=Use%20Flask%20API%20on%20Vercel%20with%20Serverless%20Functions%20using%20the%20Python%20Runtime.&demo-url=https%3A%2F%2Fvercel-plus-flask.vercel.app%2F&demo-image=https://assets.vercel.com/image/upload/v1669994600/random/python.png)
+# Fakelogs (Flask + JWT + SQLite)
 
-# Flask + Vercel
+Plataforma simples para envio e exposição de logs falsos usados em testes de regras e validações de parse. Inclui autenticação com JWT, páginas renderizadas em Jinja + Tailwind CDN e endpoints de mock data.
 
-This example shows how to use Flask on Vercel with Serverless Functions using the [Python Runtime](https://vercel.com/docs/concepts/functions/serverless-functions/runtimes/python).
+## Stack
+- Flask 3.x com Blueprints
+- Jinja2 + Tailwind via CDN
+- SQLite3 com SQLAlchemy (ORM)
+- PyJWT para emissão/validação de tokens
+- Gunicorn para desenvolvimento local e Vercel Python Runtime para deploy
 
-## Demo
+## Configuração de ambiente
+Defina variáveis para o fluxo de autenticação e banco:
+- `JWT_SECRET`: segredo para assinar tokens (obrigatório em produção; padrão `dev-secret` para dev)
+- `JWT_EXP_MINUTES`: expiração do JWT em minutos (padrão `60`)
+- `JWT_COOKIE_NAME`: nome do cookie com o token (padrão `auth_token`)
+- `JWT_COOKIE_SECURE`: use `true` em produção para marcar o cookie como `Secure` (padrão `false`)
+- `DATABASE_URL`: URL do SQLite (padrão `sqlite:///./data.db`; em serverless o armazenamento é efêmero)
 
-https://vercel-plus-flask.vercel.app/
-
-## How it Works
-
-This example uses the Web Server Gateway Interface (WSGI) with Flask to handle requests on Vercel with Serverless Functions.
-
-## Running Locally
-
+## Rodando localmente
 ```bash
-npm i -g vercel
 python -m venv .venv
 source .venv/bin/activate
-uv sync  # or alternatively pip install flask gunicorn
+pip install -e .
+export JWT_SECRET=dev-secret
 gunicorn main:app
 ```
+O app fica disponível em `http://localhost:8000` por padrão (porta do Gunicorn).
 
-Your Flask application is now available at `http://localhost:3000`.
+## Fluxo de autenticação
+- Páginas: `/auth/signup` (cadastro) e `/auth/login` (login). Sucesso no login define cookie HttpOnly `auth_token` com SameSite=Lax e expiração configurável.
+- APIs:
+  - `POST /auth/signup`: cria usuário com email único e senha hasheada (JSON ou formulário). Sucesso retorna 201 com mensagem ou redireciona para login.
+  - `POST /auth/login`: valida credenciais, emite JWT e retorna `{"token": "...", "token_type": "Bearer", "user": {...}}` além de setar o cookie.
+  - `GET /auth/logout`: limpa o cookie e redireciona para login.
+- A rota `/` é protegida: sem token válido o usuário é redirecionado para login; token inválido/expirado remove o cookie e exige nova autenticação.
 
-## One-Click Deploy
+## Endpoints de mock data
+- `GET /api/data`: lista de itens determinísticos para testes.
+- `GET /api/items/<id>`: item individual baseado no id.
 
-Deploy the example using [Vercel](https://vercel.com?utm_source=github&utm_medium=readme&utm_campaign=vercel-examples):
+## Observações de persistência
+- Em ambientes serverless (Vercel), o SQLite é efêmero; use apenas para dados de teste. Para persistência real, configure um banco externo e ajuste `DATABASE_URL`.
 
-[![Deploy with Vercel](https://vercel.com/button)](https://vercel.com/new/clone?repository-url=https%3A%2F%2Fgithub.com%2Fvercel%2Fvercel%2Ftree%2Fmain%2Fexamples%2Fflask&demo-title=Flask%20API&demo-description=Use%20Flask%20API%20on%20Vercel%20with%20Serverless%20Functions%20using%20the%20Python%20Runtime.&demo-url=https%3A%2F%2Fvercel-plus-flask.vercel.app%2F&demo-image=https://assets.vercel.com/image/upload/v1669994600/random/python.png)
+## Fluxo de branches (git)
+- `main`: produção (deploy Vercel). Só recebe merge vindo de `develop` quando está pronto para publicar.
+- `develop`: integração contínua. Toda feature sai daqui e volta para cá via PR/merge.
+- `feature/*`: branches por mudança (`git checkout -b feature/nome` a partir de `develop`), revisadas e mescladas em `develop`.
+- Releases: quando `develop` estiver estável, abrir PR/merge para `main` e disparar o deploy.
+- Hotfix: se urgente em produção, criar `hotfix/*` a partir de `main`, depois mesclar em `main` e também em `develop` para não divergir.
