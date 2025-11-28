@@ -6,7 +6,6 @@ from app.auth import auth_bp
 from app.auth.models import User
 from app.auth.security import JWT_COOKIE_NAME, clear_auth_cookie, decode_token
 from app.db import get_session, init_db, remove_session
-from app.endpoints import api_bp
 
 
 def _load_user_from_token() -> Tuple[Optional[User], bool]:
@@ -26,7 +25,6 @@ def _load_user_from_token() -> Tuple[Optional[User], bool]:
 def create_app() -> Flask:
     app = Flask(__name__, template_folder="templates")
 
-    app.register_blueprint(api_bp)
     app.register_blueprint(auth_bp)
 
     @app.get("/")
