@@ -3,7 +3,27 @@ import os
 from sqlalchemy import create_engine
 from sqlalchemy.orm import declarative_base, scoped_session, sessionmaker
 
-DATABASE_URL = os.getenv("DATABASE_URL", "sqlite:///./data.db")
+
+def _default_sqlite_url() -> str:
+    base_dir = "/tmp" if os.getenv("VERCEL") else os.getcwd()
+    return f"sqlite:///{os.path.join(base_dir, 'data.db')}"
+
+
+def _ensure_sqlite_dir(database_url: str) -> None:
+    if not database_url.startswith("sqlite"):
+        return
+    if database_url == "sqlite:///:memory:":
+        return
+
+    db_path = database_url.replace("sqlite:///", "", 1).split("?", 1)[0]
+    directory = os.path.dirname(db_path)
+    if directory:
+        os.makedirs(directory, exist_ok=True)
+
+
+DATABASE_URL = os.getenv("DATABASE_URL") or _default_sqlite_url()
+
+_ensure_sqlite_dir(DATABASE_URL)
 
 connect_args = {"check_same_thread": False} if DATABASE_URL.startswith("sqlite") else {}
 engine = create_engine(DATABASE_URL, connect_args=connect_args, future=True)
