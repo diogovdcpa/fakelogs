@@ -4,6 +4,9 @@
 __pycache__
 
 # Environments 
+# /openspec
+# /docs
+# AGENTS.md
 .env 
 .venv 
 env/ 
